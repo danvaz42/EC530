@@ -22,9 +22,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # add any dependencies, list them here
+          # Install any additional dependencies here if needed
           pip install --upgrade setuptools
 
       - name: Run Unit Tests
-        run: |
-          python -m unittest discover -v
+        working-directory: APIs
+        run: python -m unittest discover -v
