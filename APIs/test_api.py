@@ -2,7 +2,7 @@ import os
 import shutil
 import unittest
 import json
-from APIs.api import (
+from api import (
     setup_environment,
     create_user, read_user, update_user, delete_user,
     create_house, read_house, update_house, delete_house,
