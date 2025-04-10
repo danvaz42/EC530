@@ -3,6 +3,8 @@ Before Runtime:
 
 2) install any additional dependencies, mainly "OpenAI", "Pandas", "SQLite"
 
+*Note* by default the code includes a table "sample_2c" with columns (product_name, and total_revenue)
+
 To Use:
 
 1) make sure to change and enter your open_ai key 
