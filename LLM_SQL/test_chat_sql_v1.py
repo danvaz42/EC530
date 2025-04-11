@@ -1,6 +1,9 @@
+# LLM_SQL/test_chat_sql_v1.py
+
 import sqlite3
 import pandas as pd
-import pytest  # Re-added for pytest.raises
+import pytest  # Needed for pytest.raises
+from typing import List # <---- IMPORT ADDED FOR PYTHON 3.8 COMPATIBILITY
 
 # Since this file sits alongside chat_sql_v1.py, we can import directly.
 from chat_sql_v1 import (
@@ -199,6 +202,7 @@ def test_load_csv_to_table(tmp_path):
 # --- Test chatgpt_sql_prompt with a fake API response ---
 
 # Define fake response classes *outside* the test function for clarity
+# Note: These don't need `content: str` etc. for basic mocking structure
 class FakeMessage:
     def __init__(self, content):
         self.content = content
@@ -255,16 +259,18 @@ def test_chatgpt_sql_prompt(monkeypatch):
 
 # Test case for malformed API response
 def test_chatgpt_sql_prompt_malformed(monkeypatch):
-    # Fake class definitions corrected for E701
-    # These are simple structures just for this test's mock response
+    # Fake class definitions corrected for E701 and Python 3.8 compatibility
     class MockMessage:
-        content: str
+        # No need for type hint here for the structure
+        pass
 
     class MockChoice:
-        message: MockMessage
+        # No need for type hint here for the structure
+        message: MockMessage # Can hint attribute type if needed
 
     class MockCompletion:
-        choices: list[MockChoice]
+        # Use typing.List for Python 3.8 compatibility
+        choices: List[MockChoice] # <---- THE FIX IS HERE
 
     def fake_create(*args, **kwargs):
         # Simulate a response missing the 'Explanation:' delimiter
