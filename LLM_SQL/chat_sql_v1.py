@@ -82,6 +82,7 @@ def get_existing_schema(conn, table_name):
             # Table doesn't exist or has no columns
             return None
         # Return a dictionary mapping column name to uppercase type
+        # Example columns_info: [(0, 'id', 'INTEGER', 0, None, 1), ...]
         return {info[1]: info[2].upper() for info in columns_info}
     except sqlite3.Error as e:
         logging.error("Error checking schema for table '%s': %s",
@@ -170,6 +171,12 @@ def compare_schemas(inferred_schema, existing_schema):
 
         # Direct comparison after normalization
         if inferred_type != existing_type_comparable:
+            logging.info(
+                f"Schema mismatch on column '{col_name}': "
+                f"Inferred '{inferred_type}', "
+                f"Existing '{existing_schema[col_name]}' "
+                f"(normalized to '{existing_type_comparable}')"
+            )
             return False
     return True
 
@@ -185,7 +192,7 @@ def create_dynamic_table(conn, table_name, column_definitions):
         + "\n);"
     )
     try:
-        logging.info("Executing CREATE TABLE for '%s'. SQL: %s",
+        logging.info("Executing CREATE TABLE for '%s'. SQL:\n%s",
                      sanitized_table_name, create_sql)
         cursor.execute(create_sql)
         conn.commit()
@@ -224,7 +231,7 @@ def load_csv_to_table(conn, csv_file, table_name, if_exists_strategy='append'):
     )
     try:
         # Read the entire CSV into a DataFrame
-        df = pd.read_csv(csv_file, low_memory=False) # Added low_memory=False
+        df = pd.read_csv(csv_file, low_memory=False)  # Keep low_memory=False
 
         # Sanitize DataFrame column names to match table schema
         original_columns = df.columns.tolist()
@@ -236,8 +243,9 @@ def load_csv_to_table(conn, csv_file, table_name, if_exists_strategy='append'):
                          col_mapping)
 
         # Use pandas.to_sql for efficient loading
+        # Use chunksize for potentially large files
         df.to_sql(sanitized_table_name, conn, if_exists=if_exists_strategy,
-                  index=False, chunksize=1000)  # Use chunksize for large files
+                  index=False, chunksize=1000)
         conn.commit()
 
         # Verify row count after loading
@@ -253,7 +261,8 @@ def load_csv_to_table(conn, csv_file, table_name, if_exists_strategy='append'):
         logging.error("Error loading CSV %s into %s: %s",
                       csv_file, sanitized_table_name, e, exc_info=True)
         print(f"Error: Failed to load data from '{csv_file}' into "
-              f"'{sanitized_table_name}'. Check logs ({LOG_FILE}) for details.")
+              f"'{sanitized_table_name}'.\nCheck logs ({LOG_FILE}) "
+              "for details: {e}")
         conn.rollback()
         return False
 
@@ -286,14 +295,15 @@ def process_csv_file_interactive(conn, target_table_name, csv_file):
             # Schema conflict
             logging.warning("Schema conflict detected for table '%s'!",
                             sanitized_target_name)
-            print(f"\n! Schema conflict detected for table '{sanitized_target_name}'.")
-            print(f"  Existing: {existing_schema}")
-            print(f"  New CSV : {inferred_schema}")
+            print(f"\n! Schema conflict detected for '{sanitized_target_name}'.")
+            print(f"  Existing schema: {existing_schema}")
+            print(f"  New CSV schema : {inferred_schema}")
 
             while True:
                 action_prompt = (
                     "  Choose action: [O]verwrite table, "
-                    "[A]ppend anyway (may fail), [R]ename new table, "
+                    "[A]ppend anyway (may fail),\n"
+                    "                 [R]ename new table, "
                     "[S]kip this file? "
                 )
                 choice = input(action_prompt).strip().upper()
@@ -303,7 +313,7 @@ def process_csv_file_interactive(conn, target_table_name, csv_file):
                     if drop_table(conn, sanitized_target_name):
                         if create_dynamic_table(conn, sanitized_target_name,
                                                 column_definitions):
-                            load_strategy = 'replace' # replace implies recreate
+                            load_strategy = 'replace'  # replace implies recreate
                             final_table_name = sanitized_target_name
                             print(f"Table '{sanitized_target_name}' will be "
                                   "overwritten.")
@@ -320,7 +330,7 @@ def process_csv_file_interactive(conn, target_table_name, csv_file):
                 elif choice == 'A':
                     logging.info("User chose: Append anyway (schema mismatch).")
                     print("Warning: Appending data with mismatched schema "
-                          "might lead to errors.")
+                          "might lead to errors or data loss.")
                     load_strategy = 'append'
                     final_table_name = sanitized_target_name
                     break
@@ -337,7 +347,8 @@ def process_csv_file_interactive(conn, target_table_name, csv_file):
 
                         # Suggest a unique name using timestamp
                         ts = int(time.time())
-                        potential_new_name = sanitize_name(f"{new_name_base}_{ts}")
+                        potential_name = f"{new_name_base}_{ts}"
+                        potential_new_name = sanitize_name(potential_name)
                         print(f"  Suggested sanitized name: '{potential_new_name}'")
 
                         confirm_rename = input(
@@ -351,10 +362,10 @@ def process_csv_file_interactive(conn, target_table_name, csv_file):
                                 # Create the new table with the chosen name
                                 if create_dynamic_table(conn, final_table_name,
                                                         column_definitions):
-                                    load_strategy = 'replace' # Fresh table
+                                    load_strategy = 'replace'  # Fresh table
                                     print("Data will be loaded into new table "
                                           f"'{final_table_name}'.")
-                                    break # Exit inner rename loop
+                                    break  # Exit inner rename loop
                                 else:
                                     print(f"Error: Failed to create table "
                                           f"'{final_table_name}'. Please try "
@@ -362,22 +373,23 @@ def process_csv_file_interactive(conn, target_table_name, csv_file):
                                     # Stay in inner rename loop
                             else:
                                 print(f"Error: Table '{potential_new_name}' "
-                                      "already exists. Try a different base name.")
+                                      "already exists. Try a different name.")
                                 # Stay in inner rename loop
                         else:
-                            print("Rename cancelled. Please choose O, A, R, "
-                                  "or S again.")
+                            print("Rename cancelled. Choose O, A, R, or S again.")
                             # Break inner rename loop, go back to main choice
                             break
-                    # If we successfully created/chose a renamed table, exit outer loop
-                    if final_table_name == potential_new_name and load_strategy == 'replace':
+                    # If we successfully created/chose a renamed table,
+                    # exit the outer action loop.
+                    if final_table_name == potential_new_name and \
+                       load_strategy == 'replace':
                         break
 
                 elif choice == 'S':
                     logging.info("User chose: Skip.")
                     print(f"Skipping file '{csv_file}'.")
-                    final_table_name = None # Signal to skip loading
-                    break # Exit choice loop
+                    final_table_name = None  # Signal to skip loading
+                    break  # Exit choice loop
 
                 else:
                     print("Invalid choice.")
@@ -398,7 +410,7 @@ def process_csv_file_interactive(conn, target_table_name, csv_file):
     if final_table_name:
         load_csv_to_table(conn, csv_file, final_table_name,
                           if_exists_strategy=load_strategy)
-        return final_table_name # Return the name of the table used
+        return final_table_name  # Return the name of the table used
     else:
         logging.warning("No data loaded for CSV '%s'.", csv_file)
         return None
@@ -409,19 +421,19 @@ def chatgpt_sql_prompt(user_query):
     Sends the user's query to the OpenAI API to get a SQL query + explanation.
     """
     # Define instructions for the AI model
+    # Dynamically get table info here if needed, or keep static for now
     system_instructions = """
-You are an AI assistant tasked with converting user queries into SQL statements.
-The database uses SQLite and contains the following tables:
+You are an AI assistant converting user queries into SQLite statements.
+Database tables:
 - sample_2c (product_name, total_revenue)
-Your task is to:
-1. Generate a SQL query that accurately answers the user's question based on the provided table(s).
-2. Ensure the SQL is compatible with standard SQLite syntax. Avoid database-specific functions unless necessary for SQLite.
-3. Provide a short, clear comment explaining what the SQL query does.
+Task:
+1. Generate SQLite compatible SQL for the user's question.
+2. Provide a short explanation comment.
 Output Format:
 SQL Query:
-[Your generated SQL query here]
+[SQL query here]
 Explanation:
-[Your brief explanation here]
+[Explanation here]
 """
 
     messages = [
@@ -447,31 +459,28 @@ Explanation:
 
         # Parse the response based on the expected format
         if "Explanation:" not in cleaned_text:
-            logging.error("Could not find 'Explanation:' delimiter in API response.")
+            logging.error("API Response missing 'Explanation:' delimiter.")
             raise ValueError("Failed to parse response from API: "
                              "'Explanation:' delimiter not found.")
 
-        parts = cleaned_text.split("Explanation:", 1) # Split only once
+        parts = cleaned_text.split("Explanation:", 1)  # Split only once
         if len(parts) < 2:
             logging.error("Splitting by 'Explanation:' resulted in < 2 parts.")
-            raise ValueError("Failed to parse response from API after "
-                             "splitting by 'Explanation:'")
+            raise ValueError("Failed to parse response from API after split.")
 
         sql_query = parts[0].replace("SQL Query:", "").strip()
         explanation = parts[1].strip()
 
         if not sql_query:
-             logging.warning("Parsed SQL query is empty.")
-             # Decide if this should be an error or just return empty
-             # raise ValueError("Parsed SQL query from API response is empty.")
+            logging.warning("Parsed SQL query is empty.")
+            # raise ValueError("Parsed SQL query from API response is empty.")
 
         logging.info("Parsed SQL: %s", sql_query)
         logging.info("Parsed Explanation: %s", explanation)
         return sql_query, explanation
 
     except Exception as e:
-        logging.error("Error communicating with or parsing OpenAI API response: %s",
-                      e, exc_info=True)
+        logging.error("Error with OpenAI API: %s", e, exc_info=True)
         # Re-raise or handle as appropriate for the application flow
         raise ValueError(f"Error generating SQL via API: {e}")
 
@@ -491,7 +500,7 @@ def execute_sql_query(conn):
         print("Query cannot be empty.")
         return
 
-    print("\nGenerating SQL query using ChatGPT API...")
+    print("\nGenerating SQL query using OpenAI API...")
     try:
         sql_query, explanation = chatgpt_sql_prompt(user_input)
         if not sql_query:
@@ -506,11 +515,11 @@ def execute_sql_query(conn):
 
     except ValueError as e:
         # Catch specific error from API communication/parsing
-        print(f"\nError: {e}")
+        print(f"\nError generating/parsing SQL: {e}")
         return
     except Exception as e:
         # Catch unexpected errors during API call
-        logging.error("Unexpected error getting SQL from API: %s", e, exc_info=True)
+        logging.error("Unexpected error getting SQL: %s", e, exc_info=True)
         print(f"\nError: Failed to generate SQL query from the API. {e}")
         return
 
@@ -549,17 +558,18 @@ def execute_sql_query(conn):
                     display_row = []
                     for col in row:
                         col_str = str(col)
-                        if len(col_str) > 50:
-                             display_row.append(col_str[:47] + '...')
+                        max_col_width = 50
+                        if len(col_str) > max_col_width:
+                            display_row.append(col_str[:max_col_width-3] + '...')
                         else:
-                             display_row.append(col_str)
+                            display_row.append(col_str)
                     print(" | ".join(display_row))
 
             else:
                 print("\nQuery executed successfully, but returned no results.")
         else:
             # Query was likely an INSERT, UPDATE, DELETE, CREATE, etc.
-            conn.commit() # Commit changes for non-SELECT queries
+            conn.commit()  # Commit changes for non-SELECT queries
             rows_affected = cursor.rowcount
             print("\nQuery executed successfully.")
             # rowcount is -1 for non-DML statements or if not applicable
@@ -568,14 +578,15 @@ def execute_sql_query(conn):
 
         end_time = time.time()
         duration = end_time - start_time
-        logging.info("Query executed successfully in %.3f seconds. Rows affected/returned: %s",
-                     duration, len(results) if cursor.description else rows_affected)
+        log_msg = (f"Query executed successfully in {duration:.3f} seconds. "
+                   f"Rows: {len(results) if cursor.description else rows_affected}")
+        logging.info(log_msg)
 
     except sqlite3.Error as e:
         logging.error("Error executing generated query '%s': %s",
                       sql_query, e, exc_info=True)
         print(f"\nError executing the generated SQL query: {e}")
-        conn.rollback() # Rollback any potential changes from the failed query
+        conn.rollback()  # Rollback any potential changes from the failed query
 
 
 def list_tables(conn):
@@ -627,7 +638,7 @@ def run_cli():
     conn = connect_db(DB_FILE)
 
     if not conn:
-        return # Exit if database connection failed
+        return  # Exit if database connection failed
 
     print("\n--- Simple DB Interaction CLI ---")
     print(f"Connected to: {DB_FILE}")
@@ -650,15 +661,14 @@ def run_cli():
                                     csv_path)
                     continue
                 if not csv_path.lower().endswith(".csv"):
-                    print("Warning: File does not end with .csv. Proceeding anyway.")
+                    print("Warning: File does not end with .csv.")
                     logging.warning("User provided non-csv file path: %s", csv_path)
 
                 # Suggest table name based on CSV filename
                 base_name = os.path.splitext(os.path.basename(csv_path))[0]
                 suggested_name = sanitize_name(base_name)
                 table_name_prompt = (
-                    "Enter target table name (suggestion: "
-                    f"'{suggested_name}'): "
+                    f"Enter target table name (suggestion: '{suggested_name}'): "
                 )
                 table_name = input(table_name_prompt).strip()
 
@@ -667,13 +677,14 @@ def run_cli():
                     table_name = suggested_name
 
                 # Final check for a valid (non-empty after sanitize) name
-                if not sanitize_name(table_name): # Re-sanitize just in case
+                sanitized_input_name = sanitize_name(table_name)
+                if not sanitized_input_name:
                     print("Error: Invalid table name provided.")
-                    logging.warning("Invalid table name ('%s') resulted in empty "
-                                    "sanitized name.", table_name)
+                    logging.warning("Invalid table name ('%s') resulted in "
+                                    "empty sanitized name.", table_name)
                     continue
 
-                # Process the CSV, handling potential table conflicts
+                # Process the CSV, using the potentially sanitized name
                 process_csv_file_interactive(conn, table_name, csv_path)
 
             elif choice == '2':
@@ -695,7 +706,7 @@ def run_cli():
         logging.warning("Application terminated by KeyboardInterrupt.")
     except Exception as e:
         # Catch-all for unexpected errors in the main loop
-        logging.critical("An unexpected error occurred in the main CLI loop: %s",
+        logging.critical("Unexpected error in main CLI loop: %s",
                          e, exc_info=True)
         print(f"\nAn unexpected critical error occurred: {e}. Check logs.")
     finally:
