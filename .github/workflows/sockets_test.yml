@@ -1,15 +1,12 @@
-name: Test Sockets
+name: Test Sockets Directory
 
 on:
   push:
     branches: [ main ]
-    # Path relative to the REPOSITORY ROOT.
-    # Trigger only on changes within the 'Sockets' directory or its subdirectories.
     paths:
       - 'Sockets/**'
   pull_request:
     branches: [ main ]
-    # Path relative to the REPOSITORY ROOT.
     paths:
       - 'Sockets/**'
 
@@ -20,18 +17,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        # Checks out your 'EC530' repository content into the workspace.
-        # The root of your code will be at $GITHUB_WORKSPACE
-        # e.g., /home/runner/work/EC530/EC530/
-
-      - name: Verify Directory Structure (Debug Step)
-        run: |
-          echo "Current directory: $(pwd)" # Should be /home/runner/work/EC530/EC530
-          echo "Listing repository root contents:"
-          ls -la
-          echo "Checking existence of Sockets/ directory:"
-          # Check for the Sockets directory directly under the checked-out root
-          ls -la Sockets/ || echo "Sockets/ directory not found at repository root!"
+        # Checks out to $GITHUB_WORKSPACE (/home/runner/work/EC530/EC530)
 
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
@@ -42,12 +28,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install nest_asyncio
-          # If you have a requirements.txt inside Sockets/:
-          # if [ -f Sockets/requirements.txt ]; then pip install -r Sockets/requirements.txt; fi
+          # Optional: if [ -f Sockets/requirements.txt ]; then pip install -r Sockets/requirements.txt; fi
 
       - name: Run Unit Tests
-        # This working directory is relative to the repository root.
-        # The runner changes to $GITHUB_WORKSPACE/Sockets/
-        # e.g., /home/runner/work/EC530/EC530/Sockets/
-        working-directory: Sockets
-        run: python -m unittest discover -v
+        # REMOVE the working-directory directive, so it runs from the repo root ($GITHUB_WORKSPACE)
+        # Python adds the current working directory to sys.path, so it can find the 'Sockets' dir
+        # unittest discover will find tests in subdirectories by default
+        # run: python -m unittest discover -v
+        # Optional: If you ONLY want to run tests in Sockets, explicitly tell discover:
+        run: python -m unittest discover -v -s Sockets -p 'test_*.py'
