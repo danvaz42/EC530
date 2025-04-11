@@ -25,6 +25,7 @@ jobs:
           pip install numpy pandas scipy
 
       - name: Run tests
+        env:
+          DISABLE_PROFILING: "True"
         run: |
-          # Change to the directory containing tests
           python -m unittest discover -s distance_calculator -p "test_*.py"
