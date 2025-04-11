@@ -1,4 +1,4 @@
-name: Python Application Test
+name: Distance_Calculator Test
 
 on:
   push:
@@ -26,4 +26,5 @@ jobs:
 
       - name: Run tests
         run: |
-          python -m unittest discover -s . -p "test_*.py"
+          # Change to the directory containing tests
+          python -m unittest discover -s distance_calculator -p "test_*.py"
