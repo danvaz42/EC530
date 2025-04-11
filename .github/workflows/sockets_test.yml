@@ -3,12 +3,15 @@ name: Test Sockets
 on:
   push:
     branches: [ main ]
+    # Path relative to the REPOSITORY ROOT.
+    # Trigger only on changes within the 'Sockets' directory or its subdirectories.
     paths:
-      - 'EC530/Sockets/**'  # Only trigger on changes within this path
+      - 'Sockets/**'
   pull_request:
     branches: [ main ]
+    # Path relative to the REPOSITORY ROOT.
     paths:
-      - 'EC530/Sockets/**'  # Only trigger on changes within this path
+      - 'Sockets/**'
 
 jobs:
   build:
@@ -17,8 +20,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        # This checks out your code into the default workspace,
-        # likely /home/runner/work/EC530/EC530/
+        # Checks out your 'EC530' repository content into the workspace.
+        # The root of your code will be at $GITHUB_WORKSPACE
+        # e.g., /home/runner/work/EC530/EC530/
+
+      - name: Verify Directory Structure (Debug Step)
+        run: |
+          echo "Current directory: $(pwd)" # Should be /home/runner/work/EC530/EC530
+          echo "Listing repository root contents:"
+          ls -la
+          echo "Checking existence of Sockets/ directory:"
+          # Check for the Sockets directory directly under the checked-out root
+          ls -la Sockets/ || echo "Sockets/ directory not found at repository root!"
 
       - name: Set up Python 3.8
         uses: actions/setup-python@v4
@@ -29,14 +42,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install nest_asyncio
-          # Consider adding a requirements.txt inside EC530/Sockets/
-          # If it exists, install it:
-          # if [ -f EC530/Sockets/requirements.txt ]; then pip install -r EC530/Sockets/requirements.txt; fi
+          # If you have a requirements.txt inside Sockets/:
+          # if [ -f Sockets/requirements.txt ]; then pip install -r Sockets/requirements.txt; fi
 
       - name: Run Unit Tests
-        # Corrected working directory:
-        # This path is relative to the root of the checked-out repository.
-        # The runner will change into /home/runner/work/EC530/EC530/EC530/Sockets/
-        # before running the command.
-        working-directory: EC530/Sockets
+        # This working directory is relative to the repository root.
+        # The runner changes to $GITHUB_WORKSPACE/Sockets/
+        # e.g., /home/runner/work/EC530/EC530/Sockets/
+        working-directory: Sockets
         run: python -m unittest discover -v
