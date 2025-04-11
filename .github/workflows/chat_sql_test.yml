@@ -29,13 +29,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pytest
+          pip install pytest flake8
 
-      - name: Lint code with flake8
+      - name: Lint code with flake8 in EC530/LLM_SQL
         run: |
-          pip install flake8
-          flake8 .
+          flake8 EC530/LLM_SQL/
 
-      - name: Run tests with pytest in EC530/LLM_SQL/
+      - name: Run tests with pytest in EC530/LLM_SQL
         run: |
           pytest --maxfail=1 --disable-warnings -q EC530/LLM_SQL/
