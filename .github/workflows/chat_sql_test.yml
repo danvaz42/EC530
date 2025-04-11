@@ -32,6 +32,6 @@ jobs:
           pip install flake8
           flake8 .
 
-      - name: Run tests with pytest
+      - name: Run tests with pytest in EC530/LLM_SQL/
         run: |
-          pytest --maxfail=1 --disable-warnings -q
+          pytest --maxfail=1 --disable-warnings -q EC530/LLM_SQL/
