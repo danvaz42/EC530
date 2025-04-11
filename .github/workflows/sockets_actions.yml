@@ -1,4 +1,4 @@
-name: Test Sockets (EC530) # Updated name slightly for clarity
+name: Test Sockets # Updated name slightly for clarity
 
 on:
   push:
