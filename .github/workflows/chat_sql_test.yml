@@ -21,34 +21,33 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          # The following options are often defaults but kept for clarity
-          check-latest: false # Set to true if you always want the latest patch version
-          token: ${{ secrets.GITHUB_TOKEN }} # Needed for some setup-python features
-          update-environment: true # Updates pip/setuptools/wheel
-          allow-prereleases: false # Don't use prerelease versions of Python
-          cache: 'pip' # Add caching for pip dependencies
+          check-latest: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          update-environment: true
+          allow-prereleases: false
+          cache: 'pip' # Keep caching
 
       - name: Upgrade pip and install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Explicitly install known core dependencies needed by the code and tests
-          # This ensures pandas, openai, and pytest are present
           echo "Installing core dependencies: pandas, openai, pytest"
           python -m pip install pandas openai pytest
-          
-          # Attempt to install dependencies from requirements.txt if it exists
-          # This handles any other dependencies listed there
           if [ -f requirements.txt ]; then
             echo "requirements.txt found, installing..."
             python -m pip install -r requirements.txt
           else
             echo "requirements.txt not found, skipping."
           fi
-          
           echo "Listing installed packages:"
-          python -m pip freeze # List installed packages for debugging
+          python -m pip freeze # Keep debugging output
 
       # The Flake8 linting step has been removed.
+
+      - name: Display chat_sql_v1.py content for debugging
+        run: |
+          echo "--- Contents of LLM_SQL/chat_sql_v1.py being tested ---"
+          cat LLM_SQL/chat_sql_v1.py || echo "ERROR: File LLM_SQL/chat_sql_v1.py not found or cat failed"
+          echo "--- End of File Contents ---"
 
       - name: Run tests with pytest in LLM_SQL
         run: |
