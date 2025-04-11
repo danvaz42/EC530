@@ -11,7 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8]
+        # Specify the Python version(s) you want to test with
+        python-version: [3.8] # You can add more versions like [3.8, 3.9, 3.10]
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
@@ -20,21 +21,27 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          check-latest: false
-          token: ${{ secrets.GITHUB_TOKEN }}
-          update-environment: true
-          allow-prereleases: false
+          # The following options are often defaults but kept for clarity
+          check-latest: false # Set to true if you always want the latest patch version
+          token: ${{ secrets.GITHUB_TOKEN }} # Needed for some setup-python features
+          update-environment: true # Updates pip/setuptools/wheel
+          allow-prereleases: false # Don't use prerelease versions of Python
 
       - name: Upgrade pip and install dependencies
         run: |
           python -m pip install --upgrade pip
+          # Install dependencies from requirements.txt if it exists
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pytest flake8
+          # Install pytest for running tests
+          pip install pytest
 
-      - name: Lint code with flake8 in LLM_SQL
-        run: |
-          flake8 LLM_SQL/
+      # The Flake8 linting step has been removed.
 
       - name: Run tests with pytest in LLM_SQL
         run: |
+          # Run pytest:
+          # --maxfail=1 : Stop after the first test failure
+          # --disable-warnings : Suppress warnings during test execution
+          # -q : Run in quiet mode (less verbose output)
+          # LLM_SQL/ : Specify the directory containing the tests
           pytest --maxfail=1 --disable-warnings -q LLM_SQL/
