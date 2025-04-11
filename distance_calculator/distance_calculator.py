@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import logging
@@ -6,7 +7,6 @@ import pstats
 import io
 from scipy.spatial.distance import cdist  # scipy package
 
-
 # configure logging
 logging.basicConfig(
     filename="distance_calculator.log",
@@ -14,10 +14,13 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-
 def profile_function(func):
     """Decorator to profile a function and log its execution time."""
     def wrapper(*args, **kwargs):
+        # Disable profiling if environment variable DISABLE_PROFILING is set to "True"
+        if os.environ.get("DISABLE_PROFILING", "False") == "True":
+            return func(*args, **kwargs)
+
         profiler = cProfile.Profile()
         profiler.enable()
         result = func(*args, **kwargs)
@@ -54,7 +57,6 @@ def validate_coord(df, file_path):
 
 @profile_function
 def load_coord(file_path):
-    # 2 csv files are required, one for each location list
     # load x and y coordinates from a .csv file (first and second columns)
     try:
         logging.info(f"Loading coordinates from {file_path}")
