@@ -2,6 +2,7 @@ import asyncio
 import unittest
 from socket_asyncio import main
 
+# Test to trigger workflow
 class TestSocketAsyncio(unittest.TestCase):
     def test_main_runs(self):
         """Test that the main function runs without raising any exceptions.
