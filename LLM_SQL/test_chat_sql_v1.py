@@ -1,6 +1,6 @@
 import sqlite3
 import pandas as pd
-# import pytest # Removed - F401: Unused import
+import pytest  # Re-added for pytest.raises
 
 # Since this file sits alongside chat_sql_v1.py, we can import directly.
 from chat_sql_v1 import (
@@ -29,7 +29,7 @@ def test_sanitize_name():
     # Empty name should become 'unnamed_col'
     assert sanitize_name("") == "unnamed_col"
     # Handle None or other types gracefully
-    assert sanitize_name(None) == "None" # Or decide expected behavior
+    assert sanitize_name(None) == "None"  # Or decide expected behavior
     assert sanitize_name(123) == "_123"
 
 
@@ -47,10 +47,14 @@ def test_map_dtype_to_sqlite():
     datetime_series = pd.Series(pd.to_datetime(["2021-01-01", "2022-02-02"]))
     assert map_dtype_to_sqlite(datetime_series.dtype) == "TEXT"
 
-    str_series = pd.Series(["a", "b", "c"], dtype='string') # Use pandas string dtype
+    # Use pandas string dtype if available, otherwise object
+    try:
+        str_series = pd.Series(["a", "b", "c"], dtype='string')
+    except TypeError:
+        str_series = pd.Series(["a", "b", "c"], dtype='object')
     assert map_dtype_to_sqlite(str_series.dtype) == "TEXT"
 
-    object_series = pd.Series(["a", 1, None], dtype='object') # Mixed types
+    object_series = pd.Series(["a", 1, None], dtype='object')  # Mixed types
     assert map_dtype_to_sqlite(object_series.dtype) == "TEXT"
 
 
@@ -93,8 +97,8 @@ def test_infer_schema_from_csv(tmp_path):
     # Check sanitized column names and inferred types
     expected_schema = {
         "id": "INTEGER",
-        "Name_with_Space": "TEXT", # Sanitized
-        "Score": "REAL"            # Sanitized (no change needed)
+        "Name_with_Space": "TEXT",  # Sanitized
+        "Score": "REAL"             # Sanitized (no change needed)
     }
     assert inferred_schema == expected_schema
 
@@ -105,32 +109,35 @@ def test_infer_schema_from_csv(tmp_path):
         '"Name_with_Space" TEXT',
         '"Score" REAL'
     ]
-    # Order might vary depending on dict iteration in older Python, sort to compare
+    # Order might vary depending on dict iteration, sort to compare
     assert sorted(column_definitions) == sorted(expected_columns)
+
 
 # Test empty CSV
 def test_infer_schema_empty_csv(tmp_path):
     csv_file = tmp_path / "empty.csv"
-    csv_file.write_text("") # Completely empty
+    csv_file.write_text("")  # Completely empty
     schema, cols = infer_schema_from_csv(str(csv_file))
     assert schema is None
     assert cols is None
 
+
 # Test CSV with only headers
 def test_infer_schema_headers_only_csv(tmp_path):
     csv_file = tmp_path / "headers.csv"
-    csv_file.write_text("col1,col 2,3rdCol") # Headers only
+    csv_file.write_text("col1,col 2,3rdCol")  # Headers only
     schema, cols = infer_schema_from_csv(str(csv_file))
     expected_schema = {"col1": "TEXT", "col_2": "TEXT", "_3rdCol": "TEXT"}
     assert schema == expected_schema
     expected_cols = ['"col1" TEXT', '"col_2" TEXT', '"_3rdCol" TEXT']
+    # Order might vary, sort to compare
     assert sorted(cols) == sorted(expected_cols)
 
 
 # --- Test create_dynamic_table and drop_table ---
 def test_create_and_drop_table():
-    conn = sqlite3.connect(":memory:") # Use in-memory DB for testing
-    table_name = "test Create Drop Table" # Name with space
+    conn = sqlite3.connect(":memory:")  # Use in-memory DB for testing
+    table_name = "test Create Drop Table"  # Name with space
     sanitized_name = sanitize_name(table_name)
     column_definitions = ['"id" INTEGER PRIMARY KEY', '"value" TEXT']
 
@@ -141,13 +148,13 @@ def test_create_and_drop_table():
     schema = get_existing_schema(conn, sanitized_name)
     assert schema is not None
     assert "id" in schema
-    assert schema["id"] == "INTEGER" # Check type from PRAGMA
+    assert schema["id"] == "INTEGER"  # Check type from PRAGMA
     assert "value" in schema
     assert schema["value"] == "TEXT"
 
     # Drop the table using original (unsanitized) name - drop should sanitize
     assert drop_table(conn, table_name) is True
-    assert get_existing_schema(conn, sanitized_name) is None # Verify gone
+    assert get_existing_schema(conn, sanitized_name) is None  # Verify gone
     conn.close()
 
 
@@ -158,7 +165,7 @@ def test_load_csv_to_table(tmp_path):
     csv_file.write_text(csv_content)
 
     conn = sqlite3.connect(":memory:")
-    table_name = "activity log" # Needs sanitization
+    table_name = "activity log"  # Needs sanitization
     sanitized_name = sanitize_name(table_name)
 
     # Need to create the table first before loading with 'append' or 'replace'
@@ -177,29 +184,37 @@ def test_load_csv_to_table(tmp_path):
     count = cursor.fetchone()[0]
     assert count == 3
 
-    # Verify column names were sanitized in the table
-    cursor.execute(f'SELECT "User_ID", "Activity_Name" FROM "{sanitized_name}" WHERE "User_ID" = 1')
+    # Verify column names were sanitized in the table and data loaded correctly
+    cursor.execute(
+        f'SELECT "User_ID", "Activity_Name" FROM "{sanitized_name}" '
+        'WHERE "User_ID" = 1'
+    )
     row = cursor.fetchone()
-    assert row == (1, "Login") # Assuming User_ID is INTEGER, Activity_Name TEXT
+    # Assuming User_ID is INTEGER, Activity_Name TEXT
+    assert row == (1, "Login")
 
     conn.close()
 
 
 # --- Test chatgpt_sql_prompt with a fake API response ---
+
+# Define fake response classes *outside* the test function for clarity
+class FakeMessage:
+    def __init__(self, content):
+        self.content = content
+
+
+class FakeChoice:
+    def __init__(self, message):
+        self.message = message
+
+
+class FakeCompletion:
+    def __init__(self, choices):
+        self.choices = choices
+
+
 def test_chatgpt_sql_prompt(monkeypatch):
-    # Define fake response classes to mimic OpenAI's structure
-    class FakeMessage:
-        def __init__(self, content):
-            self.content = content
-
-    class FakeChoice:
-        def __init__(self, message):
-            self.message = message
-
-    class FakeCompletion:
-        def __init__(self, choices):
-            self.choices = choices
-
     # Define the fake create function
     def fake_create(*args, **kwargs):
         # Simulate a valid response structure
@@ -233,19 +248,35 @@ def test_chatgpt_sql_prompt(monkeypatch):
                             "sample_2c table, ordering them by revenue in "
                             "descending order.")
 
-    assert sql_query == expected_sql.strip() # Ensure leading/trailing ws removed
+    # Ensure leading/trailing ws removed and compare
+    assert sql_query == expected_sql.strip()
     assert explanation == expected_explanation.strip()
+
 
 # Test case for malformed API response
 def test_chatgpt_sql_prompt_malformed(monkeypatch):
-    class FakeMessage: content: str
-    class FakeChoice: message: FakeMessage
-    class FakeCompletion: choices: list[FakeChoice]
+    # Fake class definitions corrected for E701
+    # These are simple structures just for this test's mock response
+    class MockMessage:
+        content: str
+
+    class MockChoice:
+        message: MockMessage
+
+    class MockCompletion:
+        choices: list[MockChoice]
 
     def fake_create(*args, **kwargs):
         # Simulate a response missing the 'Explanation:' delimiter
         fake_content = "SELECT * FROM sample_2c;"
-        return FakeCompletion(choices=[FakeChoice(FakeMessage(fake_content))])
+        # We need instances, not just types
+        message = MockMessage()
+        message.content = fake_content
+        choice = MockChoice()
+        choice.message = message
+        completion = MockCompletion()
+        completion.choices = [choice]
+        return completion
 
     monkeypatch.setattr(client.chat.completions, "create", fake_create)
 
