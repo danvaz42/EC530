@@ -101,47 +101,71 @@ def infer_schema_from_csv(csv_file):
         # Read a sample to infer types, handle potential low memory issues
         df_sample = pd.read_csv(csv_file, nrows=100, low_memory=False)
 
+        # Check if the initial sample read any *data rows*
         if df_sample.empty:
-            # If even the sample is empty, try reading just headers
-            df_sample = pd.read_csv(csv_file, nrows=0)
-            if df_sample.empty:
-                # If still empty (no headers), cannot infer schema
-                logging.error("Cannot determine columns from empty CSV: %s",
+            logging.info("Initial sample is empty, checking for headers only.")
+            # Try reading just headers (nrows=0)
+            # Use a different variable name for clarity
+            df_headers = pd.read_csv(csv_file, nrows=0)
+
+            # --- Start of Fix ---
+            # Check if reading headers failed (no columns found)
+            if df_headers.columns.empty:
+                # Truly empty or unreadable file
+                logging.error("Cannot determine columns from empty or invalid CSV: %s",
                               csv_file)
-                print(f"Error: Cannot read columns from empty CSV '{csv_file}'")
+                # Use a slightly different error message for clarity
+                print(f"Error: Cannot read columns from empty or invalid CSV '{csv_file}'")
                 return None, None
-            # If headers exist but no rows, assume all TEXT
-            inferred_schema = {
-                sanitize_name(col): 'TEXT' for col in df_sample.columns
-            }
-            logging.warning(
-                "CSV '%s' has headers only. Inferring all columns as TEXT.",
-                csv_file
-            )
+            else:
+                # Headers *were* found (columns exist), infer all as TEXT
+                inferred_schema = {
+                    sanitize_name(col): 'TEXT' for col in df_headers.columns
+                }
+                logging.warning(
+                    "CSV '%s' has headers only. Inferring all columns as TEXT.",
+                    csv_file
+                )
+                # Need to generate column definitions here too
+                column_definitions = []
+                for name, type_ in inferred_schema.items():
+                    col_def = f'"{name}" {type_}'
+                    # No PK inference possible with headers only
+                    column_definitions.append(col_def)
+                # Return the schema and definitions derived from headers
+                logging.info("Inferred schema for %s: %s", csv_file, inferred_schema)
+                return inferred_schema, column_definitions
+            # --- End of Fix ---
+
         else:
-            # Infer types from the sample data
+            # Initial sample was NOT empty, infer types from data
             inferred_schema = {}
             for col_name in df_sample.columns:
                 sanitized_col_name = sanitize_name(col_name)
                 sqlite_type = map_dtype_to_sqlite(df_sample[col_name].dtype)
                 inferred_schema[sanitized_col_name] = sqlite_type
 
-        # Prepare column definitions for CREATE TABLE statement
-        column_definitions = []
-        pk_found = False
-        for name, type_ in inferred_schema.items():
-            col_def = f'"{name}" {type_}'
-            # Basic primary key heuristic: 'id' column of type INTEGER
-            if not pk_found and name.lower() == 'id' and type_ == 'INTEGER':
-                col_def += ' PRIMARY KEY'
-                pk_found = True
-            column_definitions.append(col_def)
+            # Prepare column definitions for CREATE TABLE statement
+            column_definitions = []
+            pk_found = False
+            for name, type_ in inferred_schema.items():
+                col_def = f'"{name}" {type_}'
+                # Basic primary key heuristic: 'id' column of type INTEGER
+                if not pk_found and name.lower() == 'id' and type_ == 'INTEGER':
+                    col_def += ' PRIMARY KEY'
+                    pk_found = True
+                column_definitions.append(col_def)
 
-        logging.info("Inferred schema for %s: %s", csv_file, inferred_schema)
-        return inferred_schema, column_definitions
+            logging.info("Inferred schema for %s: %s", csv_file, inferred_schema)
+            return inferred_schema, column_definitions
+
+    except pd.errors.EmptyDataError:
+        # Handle specifically the case where read_csv gives EmptyDataError
+        logging.error("CSV file '%s' is completely empty or invalid.", csv_file)
+        print(f"Error: Cannot read columns from empty or invalid CSV '{csv_file}'")
+        return None, None
     except Exception as e:
-        logging.error("Error inferring schema for %s: %s",
-                      csv_file, e, exc_info=True)
+        logging.error("Error inferring schema for %s: %s", csv_file, e, exc_info=True)
         print(f"An error occurred while reading the CSV schema: {e}")
         return None, None
 
