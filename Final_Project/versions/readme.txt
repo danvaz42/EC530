@@ -1,0 +1,1 @@
+This folder contains older versions of the program. Only the latest version of the app is supported. As such, these prior versions may or may not work.
