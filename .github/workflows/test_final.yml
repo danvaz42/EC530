@@ -60,4 +60,4 @@ jobs:
     - name: Run tests with pytest
       run: |
         touch Final_Project/__init__.py
-        pytest
+        pytest Final_Project/
