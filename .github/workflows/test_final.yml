@@ -49,4 +49,5 @@ jobs:
     # Runs pytest, specifically targeting tests within the Final_Project directory
     - name: Run tests with pytest
       run: |
-        pytest Final_Project/
+        touch Final_Project/__init__.py
+        pytest
