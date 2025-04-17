@@ -1,0 +1,1 @@
+For server debugging. Same codebase, but added debugging steps (prints, error checks, etc). Use exactly like main the relay_server.py file. Check the readme in "./Final_Project/" for additional setup details if necessary. 
