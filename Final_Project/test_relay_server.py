@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, call # Import 'patch' and
 
 # Important: Import from your SERVER file now.
 # Assuming relay_server_v2.py is in the same Final_Project directory
-from .relay_server_v2 import handle_client, broadcast, clients_lock
+from Final_Project.relay_server_v2 import handle_client, broadcast, clients_lock
 
 # Mark all tests in this module as asyncio tests
 pytestmark = pytest.mark.asyncio
