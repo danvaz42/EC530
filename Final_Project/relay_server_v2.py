@@ -4,7 +4,7 @@ import sys
 from collections import defaultdict # Using defaultdict might simplify slightly
 
 # --- Configuration ---
-DEFAULT_HOST = '0.0.0.0'  # Listen on all available network interfaces
+DEFAULT_HOST = '000.00.000.00'  # Listen on all available network interfaces
 DEFAULT_PORT = 0000       # Port for chat communication (currently obscured for security)
 
 # --- Global State ---
