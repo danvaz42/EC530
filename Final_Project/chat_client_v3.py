@@ -7,8 +7,9 @@ import threading
 import time
 
 # --- Configuration ---
-DEFAULT_SERVER_HOST = '142.93.118.96' # Default to YOUR server's public IP!
-DEFAULT_SERVER_PORT = 8888        # Default port YOUR server is using
+# Obscured Host/Port
+DEFAULT_SERVER_HOST = '000.00.000.00' # Default to YOUR server's public IP!
+DEFAULT_SERVER_PORT = 0000        # Default port YOUR server is using
 APP_NAME = "Async Chat V2"
 CONNECT_TIMEOUT = 10 # Seconds
 
