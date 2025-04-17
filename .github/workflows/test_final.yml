@@ -43,6 +43,16 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest pytest-asyncio
+        # If you add external dependencies to relay_server.py later, add them here:
+        # pip install requests some-other-package
+        # Or use requirements.txt:
+        # if [ -f Final_Project/requirements.txt ]; then pip install -r Final_P
+
+    # Installs dependencies - pytest and pytest-asyncio for async testing
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio
         # If you add external dependencies later, add them here or use requirements.txt:
         # pip install -r Final_Project/requirements.txt
 
