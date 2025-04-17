@@ -1,6 +1,6 @@
 # .github/workflows/test_final.yml
 
-name: Test P2P Chat Application
+name: Test Client/Server Chat
 
 # Controls when the workflow will run
 on:
