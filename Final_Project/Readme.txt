@@ -28,9 +28,10 @@ Setup/Running
 
 1) Install latest python version (https://www.python.org/downloads/)
 2) Enter "pip install customtkinter" (no quotes) in a terminal
-3) Download the latest version of chat_client.py
-4) Navigate to the folder with the downloaded file > right click anywhere in the folder > select "open terminal here"
-5) In the terminal session, run the command > python chat_client_(your version).py 
+3) Enter "pip install customtkinter" (no quotes) in a terminal
+4) Download the latest version of chat_client.py
+5) Navigate to the folder with the downloaded file > right click anywhere in the folder > select "open terminal here"
+6) In the terminal session, run the command > python chat_client_(your version).py 
 _____________________________________________________________________________________________________________
 Future Updates:
 
