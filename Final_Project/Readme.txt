@@ -1,8 +1,10 @@
+Comprendo APP
+
 Mission Statement:
 
 This application is being designed to operate as a language-decentralized chatting program. It enables users to send and receive messages that will be automatically translated into any supported language of preference. This program is meant to break down language barriers, and give every user the ability to chat with anyone from anywhere.
 _____________________________________________________________________________________________________________
-Latest Version: (chat_client_v4, relay_server_v2) 4/23/25
+Latest Version: (chat_client_v5, relay_server_v2) 4/24/25
 
 Requirements:
 - python3
@@ -10,19 +12,16 @@ Requirements:
 - OpenAI (Python API)
 
 Changes:
-- Added chat translation with ChatGPT API
-- Added "Language" button to the client GUI to select tranlation language 
-- Added some debugging in chat_client_v4.py for llm calls.
-- New Requirement > python API > OpenAI
-	- install in terminal using "pip install OpenAI"
+- Added ability to directly input API Key, Server Host IP, Port Number
+- Added functionality to clean text inputs of extra spaces.
+- Added additional debugging features related to new input fields.
 
-Note:
-- Server information is currently obscured while in development.
-- OpenAI API key must be input
+Fixes:
+- Fixed an issue where language couldn't be changed after connecting to a server.
 ____________________________________________________________________________________________________________
 Current Functionality:
 
-- Allows chat between client/server in GUI. Language selection allows all messages to be translated into a desired language.
+- Allows chat between client/server in GUI. Language selection allows all messages to be translated into a desired language. Users can input server host IP and port number.
 _____________________________________________________________________________________________________________
 Setup/Running
 
@@ -44,11 +43,35 @@ x Support multiple connections ==> (Added in v2)
 _____________________________________________________________________________________________________________
 Changelog:
 
+(v4) 4/23/25
+
+Requirements:
+- python3
+- customtkinter (Python Package)
+- OpenAI (Python API)
+
+Functionality:
+- Allows chat between client/server in GUI. Language selection allows all messages to be translated into a desired language.
+
+Changes:
+- Added chat translation with ChatGPT API
+- Added "Language" button to the client GUI to select tranlation language 
+- Added some debugging in chat_client_v4.py for llm calls.
+- New Requirement > python API > OpenAI
+	- install in terminal using "pip install OpenAI"
+
+Note:
+- Server information is currently obscured while in development.
+- OpenAI API key must be input
+
 (v3) 4/17/25
 
 Requirements:
 - python3
 - customtkinter (Python Package)
+
+Functionality:
+- Allows chat between client/server in GUI.
 
 Changes:
 - Added Client-Side GUI.
@@ -64,6 +87,7 @@ Fixes:
 Requirements:
 - python3
 
+Functionality:
 - Allows chat between multiple clients/server in shell terminal.
 
 Changes:
@@ -75,4 +99,5 @@ Changes:
 Requirements:
 - python3
 
+Functionality:
 - Allows chat between client/server in shell terminal. Only functional on same machine (uses localhost).
